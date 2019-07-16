@@ -10,25 +10,13 @@ DATASET_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "description": "Dummy dataset",
     "type": "object",
-    "required": ["id", "entries"],
+    "required": ["id", "content"],
     "properties": {
         "id": {
             "type": "string"
         },
-        "entries": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["id", "content"],
-                "properties": {
-                    "id": {
-                        "type": "string"
-                    },
-                    "content": {
-                        "type": "string"
-                    }
-                }
-            }
+        "content": {
+            "type": "string"
         }
     }
 }
