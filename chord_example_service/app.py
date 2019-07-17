@@ -3,7 +3,7 @@ import datetime
 import os
 import sqlite3
 
-from flask import Flask, g, json, jsonify
+from flask import Flask, g, json, jsonify, request
 
 DATASET_SCHEMA = {
     "$id": "TODO",
@@ -108,9 +108,38 @@ def dataset_by_id(dataset_id):
     })
 
 
+SEARCH_NEGATION = ("pos", "neg")
+SEARCH_CONDITIONS = ("eq", "lt", "le", "gt", "ge", "co")
+SQL_SEARCH_CONDITIONS = {
+    "eq": "=",
+    "lt": "<",
+    "le": "<=",
+    "gt": ">",
+    "ge": ">=",
+    "co": "LIKE"
+}
+
+
 @application.route("/search", methods=["POST"])
 def service_types():
-    return jsonify({"placeholder": True})
+    # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
+    # TODO: PROBABLY VULNERABLE IN SOME WAY
+
+    conditions = request.json
+    conditions_filtered = [c for c in conditions if c["searchField"].split(".")[-1] in ("id", "content") and
+                           c["negation"] in SEARCH_NEGATION and c["condition"] in SEARCH_CONDITIONS]
+    query = "SELECT * FROM entries WHERE {}".format(" AND ".join(
+        ["{}({} {} ?)".format("NOT " if c["negation"] == "neg" else "", c["searchField"].split(".")[-1],
+                              SQL_SEARCH_CONDITIONS[c["condition"]])
+         for c in conditions_filtered]))
+
+    db = get_db()
+    c = db.cursor()
+
+    c.execute(query, tuple([f"%{c['searchValue']}%" if c["condition"] == "co" else c["searchValue"]
+                            for c in conditions_filtered]))
+
+    return jsonify({"results": [dict(c) for c in c.fetchall()]})
 
 
 @application.route("/service-info", methods=["GET"])
