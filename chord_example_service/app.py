@@ -180,7 +180,7 @@ def service_types():
     conditions = request.json
     conditions_filtered = [c for c in conditions if c["searchField"].split(".")[-1] in ("id", "content") and
                            c["negation"] in SEARCH_NEGATION and c["condition"] in SEARCH_CONDITIONS]
-    query = "SELECT * FROM entries WHERE {}".format(" AND ".join(
+    query = "SELECT * FROM datasets WHERE EXISTS (SELECT * FROM entries WHERE {})".format(" AND ".join(
         ["{}({} {} ?)".format("NOT " if c["negation"] == "neg" else "", c["searchField"].split(".")[-1],
                               SQL_SEARCH_CONDITIONS[c["condition"]])
          for c in conditions_filtered]))
