@@ -4,19 +4,37 @@ import os
 import sqlite3
 
 from flask import Flask, g, json, jsonify, request
+from uuid import uuid4
 
-DATASET_SCHEMA = {
-    "$id": "TODO",
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "description": "Dummy dataset",
-    "type": "object",
-    "required": ["id", "content"],
-    "properties": {
-        "id": {
-            "type": "string"
-        },
-        "content": {
-            "type": "string"
+DATA_TYPE_SCHEMA = {
+    "demo1": {
+        "$id": "TODO_1",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "description": "Dummy data type 1",
+        "type": "object",
+        "required": ["id", "content"],
+        "properties": {
+            "id": {
+                "type": "string"
+            },
+            "content": {
+                "type": "string"
+            }
+        }
+    },
+    "demo2": {
+        "$id": "TODO_2",
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "description": "Dummy data type 2",
+        "type": "object",
+        "required": ["id", "content"],
+        "properties": {
+            "id": {
+                "type": "string"
+            },
+            "content": {
+                "type": "string"
+            }
         }
     }
 }
@@ -49,12 +67,26 @@ def init_db():
 
     db.commit()
 
+    # Dummy values
+    c = db.cursor()
+
+    for dt in ("demo1", "demo2"):
+        c.execute("INSERT INTO data_types VALUES (?, ?)", (dt, json.dumps(DATA_TYPE_SCHEMA[dt])))
+        for _ in range(5):
+            new_id = str(uuid4())
+            c.execute("INSERT INTO datasets VALUES (?, ?)", (new_id, dt))
+            for e in range(20):
+                c.execute("INSERT INTO entries (content, dataset) VALUES (?, ?)", ("test content {}".format(e),
+                                                                                   new_id))
+
+    db.commit()
+
 
 def update_db():
     db = get_db()
     c = db.cursor()
 
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='services'")
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='datasets'")
     if c.fetchone() is None:
         init_db()
         return
@@ -71,28 +103,44 @@ with application.app_context():
         update_db()
 
 
-@application.route("/datasets", methods=["GET"])
-def datasets():
+@application.route("/data-types", methods=["GET"])
+def data_types():
     db = get_db()
     c = db.cursor()
-    c.execute("SELECT DISTINCT dataset FROM entries")
+    c.execute("SELECT * FROM data_types")
 
-    dataset_ids = c.fetchall()
+    dts = c.fetchall()
+
+    return jsonify([{"id": t["id"], "schema": json.loads(t["schema"])} for t in dts])
+
+
+@application.route("/datasets", methods=["GET"])
+def datasets():
+    dt = request.args.get("data-type", default="")
+
+    db = get_db()
+    c = db.cursor()
+    c.execute("SELECT d.id AS dataset, t.schema AS schema FROM datasets as d, data_types as t "
+              "WHERE d.data_type = t.id AND {}".format("d.data_type = ?" if dt != "" else "1"),
+              (dt,) if dt != "" else ())
+
+    data_sets = c.fetchall()
 
     return jsonify([{
         "id": d["dataset"],
-        "schema": DATASET_SCHEMA
-    } for d in dataset_ids])
+        "schema": json.loads(d["schema"])
+    } for d in data_sets])
 
 
 @application.route("/datasets/<uuid:dataset_id>", methods=["GET"])
 def dataset_by_id(dataset_id):
     db = get_db()
     c = db.cursor()
-    c.execute("SELECT * FROM entries WHERE dataset = ?", (str(dataset_id),))
+    c.execute("SELECT d.id AS id, t.schema AS schema FROM datasets AS d, data_types AS t WHERE d.data_type = t.id "
+              "AND d.id = ?", (str(dataset_id),))
 
-    entries = c.fetchall()
-    if len(entries) == 0:
+    dataset = c.fetchone()
+    if dataset is None:
         return application.response_class(
             response=json.dumps({
                 "code": 404,
@@ -102,9 +150,13 @@ def dataset_by_id(dataset_id):
             })
         )
 
+    c.execute("SELECT * FROM entries WHERE dataset = ?", (str(dataset_id),))
+
+    entries = c.fetchall()
+
     return jsonify({
         "objects": [{"id": e["id"], "content": e["content"]} for e in entries],
-        "schema": DATASET_SCHEMA
+        "schema": json.loads(dataset["schema"])  # TODO
     })
 
 
