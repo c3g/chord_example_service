@@ -177,19 +177,22 @@ def service_types():
     # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
     # TODO: PROBABLY VULNERABLE IN SOME WAY
 
-    conditions = request.json
+    dt = request.json["dataTypeID"]
+    conditions = request.json["conditions"]
     conditions_filtered = [c for c in conditions if c["searchField"].split(".")[-1] in ("id", "content") and
                            c["negation"] in SEARCH_NEGATION and c["condition"] in SEARCH_CONDITIONS]
-    query = "SELECT * FROM datasets WHERE EXISTS (SELECT * FROM entries WHERE {})".format(" AND ".join(
-        ["{}({} {} ?)".format("NOT " if c["negation"] == "neg" else "", c["searchField"].split(".")[-1],
-                              SQL_SEARCH_CONDITIONS[c["condition"]])
-         for c in conditions_filtered]))
+    query = ("SELECT * FROM datasets AS d WHERE d.data_type = ? AND d.id IN ("
+             "SELECT dataset FROM entries WHERE {})".format(
+                 " AND ".join(["{}({} {} ?)".format("NOT " if c["negation"] == "neg" else "",
+                                                    c["searchField"].split(".")[-1],
+                                                    SQL_SEARCH_CONDITIONS[c["condition"]])
+                               for c in conditions_filtered])))
 
     db = get_db()
     c = db.cursor()
 
-    c.execute(query, tuple([f"%{c['searchValue']}%" if c["condition"] == "co" else c["searchValue"]
-                            for c in conditions_filtered]))
+    c.execute(query, (dt,) + tuple([f"%{c['searchValue']}%" if c["condition"] == "co" else c["searchValue"]
+                                    for c in conditions_filtered]))
 
     return jsonify({"results": [dict(c) for c in c.fetchall()]})
 
