@@ -104,7 +104,9 @@ with application.app_context():
 
 
 @application.route("/data-types", methods=["GET"])
-def data_types():
+def data_type_list():
+    # Data types are basically stand-ins for schema blocks
+
     db = get_db()
     c = db.cursor()
     c.execute("SELECT * FROM data_types")
@@ -114,8 +116,30 @@ def data_types():
     return jsonify([{"id": t["id"], "schema": json.loads(t["schema"])} for t in dts])
 
 
+@application.route("/data-types/<string:data_type_id>", methods=["GET"])
+def data_type_detail(data_type_id: str):
+    db = get_db()
+    c = db.cursor()
+    c.execute("SELECT * FROM data_types WHERE id = ?", (data_type_id,))
+    data_type = c.fetchone()
+    # TODO: 404
+    return jsonify({
+        "id": data_type["id"],
+        "schema": json.loads(data_type["schema"])
+    })
+
+
+@application.route("/data-types/<string:data_type_id>/schema", methods=["GET"])
+def data_type_schema(data_type_id: str):
+    db = get_db()
+    c = db.cursor()
+    c.execute("SELECT schema FROM data_types WHERE id = ?", (data_type_id,))
+    # TODO: 404
+    return jsonify(json.loads(c.fetchone()[0]))
+
+
 @application.route("/datasets", methods=["GET"])
-def datasets():
+def dataset_list():
     dt = request.args.get("data-type", default="")
 
     db = get_db()
@@ -133,7 +157,7 @@ def datasets():
 
 
 @application.route("/datasets/<uuid:dataset_id>", methods=["GET"])
-def dataset_by_id(dataset_id):
+def dataset_detail(dataset_id):
     db = get_db()
     c = db.cursor()
     c.execute("SELECT d.id AS id, t.schema AS schema FROM datasets AS d, data_types AS t WHERE d.data_type = t.id "
@@ -173,7 +197,7 @@ SQL_SEARCH_CONDITIONS = {
 
 
 @application.route("/search", methods=["POST"])
-def service_types():
+def search_endpoint():
     # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
     # TODO: PROBABLY VULNERABLE IN SOME WAY
 
