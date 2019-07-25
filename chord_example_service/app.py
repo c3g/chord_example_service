@@ -121,8 +121,18 @@ def data_type_detail(data_type_id: str):
     db = get_db()
     c = db.cursor()
     c.execute("SELECT * FROM data_types WHERE id = ?", (data_type_id,))
+
     data_type = c.fetchone()
-    # TODO: 404
+    if data_type is None:
+        return application.response_class(
+            response=json.dumps({
+                "code": 404,
+                "message": "Data type not found",
+                "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
+                "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
+            })
+        )
+
     return jsonify({
         "id": data_type["id"],
         "schema": json.loads(data_type["schema"])
@@ -134,8 +144,19 @@ def data_type_schema(data_type_id: str):
     db = get_db()
     c = db.cursor()
     c.execute("SELECT schema FROM data_types WHERE id = ?", (data_type_id,))
-    # TODO: 404
-    return jsonify(json.loads(c.fetchone()[0]))
+
+    data_type = c.fetchone()
+    if data_type is None:
+        return application.response_class(
+            response=json.dumps({
+                "code": 404,
+                "message": "Data type not found",
+                "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
+                "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
+            })
+        )
+
+    return jsonify(json.loads(data_type[0]))
 
 
 @application.route("/datasets", methods=["GET"])
