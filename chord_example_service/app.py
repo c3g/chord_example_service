@@ -39,10 +39,20 @@ DATA_TYPE_SCHEMA = {
     }
 }
 
+
 application = Flask(__name__)
 application.config.from_mapping(
     DATABASE=os.environ.get("DATABASE", "chord_example_service.db")
 )
+
+
+def data_type_404(data_type_id):
+    return json.dumps({
+        "code": 404,
+        "message": "Data type not found",
+        "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
+        "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
+    })
 
 
 def get_db():
@@ -124,14 +134,7 @@ def data_type_detail(data_type_id: str):
 
     data_type = c.fetchone()
     if data_type is None:
-        return application.response_class(
-            response=json.dumps({
-                "code": 404,
-                "message": "Data type not found",
-                "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
-                "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
-            })
-        )
+        return application.response_class(response=data_type_404(data_type_id))
 
     return jsonify({
         "id": data_type["id"],
@@ -147,14 +150,7 @@ def data_type_schema(data_type_id: str):
 
     data_type = c.fetchone()
     if data_type is None:
-        return application.response_class(
-            response=json.dumps({
-                "code": 404,
-                "message": "Data type not found",
-                "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
-                "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
-            })
-        )
+        return application.response_class(response=data_type_404(data_type_id))
 
     return jsonify(json.loads(data_type[0]))
 
