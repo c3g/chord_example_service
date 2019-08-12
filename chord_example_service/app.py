@@ -15,10 +15,24 @@ DATA_TYPE_SCHEMA = {
         "required": ["id", "content"],
         "properties": {
             "id": {
-                "type": "string"
+                "type": "string",
+                "search": {
+                    "operations": ["eq", "lt", "le", "gt", "ge", "co"],
+                    "canNegate": True,
+                    "required": False,
+                    "type": "unlimited",  # single / unlimited
+                    "order": 0
+                }
             },
             "content": {
-                "type": "string"
+                "type": "string",
+                "search": {
+                    "operations": ["eq", "lt", "le", "gt", "ge", "co"],
+                    "canNegate": True,
+                    "required": False,
+                    "type": "unlimited",  # single / unlimited
+                    "order": 1
+                }
             }
         }
     },
@@ -30,10 +44,24 @@ DATA_TYPE_SCHEMA = {
         "required": ["id", "content"],
         "properties": {
             "id": {
-                "type": "string"
+                "type": "string",
+                "search": {
+                    "operations": ["eq", "lt", "le", "gt", "ge", "co"],
+                    "canNegate": True,
+                    "required": False,
+                    "type": "unlimited",  # single / unlimited
+                    "order": 0
+                }
             },
             "content": {
-                "type": "string"
+                "type": "string",
+                "search": {
+                    "operations": ["eq", "lt", "le", "gt", "ge", "co"],
+                    "canNegate": True,
+                    "required": False,
+                    "type": "unlimited",  # single / unlimited
+                    "order": 0
+                }
             }
         }
     }
