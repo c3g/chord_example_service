@@ -265,6 +265,38 @@ def search_endpoint():
     return jsonify({"results": [dict(c) for c in c.fetchall()]})
 
 
+@application.route("/private/search", methods=["POST"])
+def private_search_endpoint():
+    # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
+    # TODO: PROBABLY VULNERABLE IN SOME WAY
+
+    dt = request.json["dataTypeID"]
+    conditions = request.json["conditions"]
+    conditions_filtered = [c for c in conditions if c["field"].split(".")[-1] in ("id", "content") and
+                           isinstance(c["negated"], bool) and c["operation"] in SEARCH_CONDITIONS]
+
+    entry_conditions = " AND ".join(["{}({} {} ?)".format(
+        "NOT " if c["negated"] else "", "e." + c["field"].split(".")[-1], SQL_SEARCH_OPERATIONS[c["operation"]])
+        for c in conditions_filtered])
+
+    query = ("SELECT d.id as dataset_id, e.id as id, e.content as content FROM datasets AS d, entries AS e "
+             "WHERE d.data_type = ? AND d.id = e.dataset AND {}".format(entry_conditions))
+
+    db = get_db()
+    db.set_trace_callback(print)
+    c = db.cursor()
+
+    c.execute(query, (dt,) + tuple([f"%{c['searchValue']}%" if c["operation"] == "co" else c["searchValue"]
+                                    for c in conditions_filtered]))
+
+    results_by_dataset_id = {}
+    for entry in c.fetchall():
+        results_by_dataset_id[entry[0]] = results_by_dataset_id.get(entry[0], []) + \
+            [{"id": entry[1], "content": entry[2]}]
+
+    return jsonify({"results": results_by_dataset_id})
+
+
 @application.route("/service-info", methods=["GET"])
 def service_info():
     # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
