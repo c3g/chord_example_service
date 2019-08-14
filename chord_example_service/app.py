@@ -272,7 +272,7 @@ def service_info():
     return jsonify({
         "id": "ca.distributedgenomics.chord_example_service",  # TODO: Should be globally unique
         "name": "CHORD Example Service",                       # TODO: Should be globally unique
-        "type": "urn:ga4gh:search",                            # TODO
+        "type": "ca.distributedgenomics:chord_example_service:{}".format(chord_example_service.__version__),  # TODO
         "description": "Example service for a CHORD application.",
         "organization": "GenAP",
         "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
