@@ -185,13 +185,15 @@ def data_type_schema(data_type_id: str):
 
 @application.route("/datasets", methods=["GET"])
 def dataset_list():
-    dt = request.args.get("data-type", default="")
+    dt = request.args.getlist("data-type", default="")
+
+    # TODO: Support querying multiple data types at once
 
     db = get_db()
     c = db.cursor()
     c.execute("SELECT d.id AS dataset, t.schema AS schema FROM datasets as d, data_types as t "
               "WHERE d.data_type = t.id AND {}".format("d.data_type = ?" if dt != "" else "1"),
-              (dt,) if dt != "" else ())
+              (dt[0],) if len(dt) > 0 else ())
 
     data_sets = c.fetchall()
 
