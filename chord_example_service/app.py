@@ -186,7 +186,7 @@ def data_type_schema(data_type_id: str):
 
 @application.route("/datasets", methods=["GET"])
 def dataset_list():
-    dt = request.args.getlist("data-type", default="")
+    dt = request.args.getlist("data-type")
 
     # TODO: Support querying multiple data types at once
 
