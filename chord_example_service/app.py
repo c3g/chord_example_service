@@ -130,7 +130,10 @@ def init_db():
         c.execute("INSERT INTO data_types VALUES (?, ?)", (dt, json.dumps(DATA_TYPE_SCHEMA[dt])))
         for _ in range(5):
             new_id = str(uuid4())
-            c.execute("INSERT INTO datasets VALUES (?, ?)", (new_id, dt))
+            c.execute("INSERT INTO datasets (id, data_type, metadata) VALUES (?, ?, ?)", (new_id, dt, json.dumps({
+                "created": datetime.datetime.utcnow().isoformat() + "Z",
+                "updated": datetime.datetime.utcnow().isoformat() + "Z"
+            })))
             for e in range(20):
                 c.execute("INSERT INTO entries (content, dataset) VALUES (?, ?)", ("test content {}".format(e),
                                                                                    new_id))
@@ -169,7 +172,11 @@ def data_type_list():
 
     dts = c.fetchall()
 
-    return jsonify([{"id": t["id"], "schema": json.loads(t["schema"])} for t in dts])
+    return jsonify([{
+        "id": t["id"],
+        "schema": json.loads(t["schema"]),
+        "metadata_schema": TABLE_METADATA_SCHEMA
+    } for t in dts])
 
 
 @application.route("/data-types/<string:data_type_id>", methods=["GET"])
@@ -215,7 +222,7 @@ def dataset_list():
 
     db = get_db()
     c = db.cursor()
-    c.execute("SELECT d.id AS dataset, t.schema AS schema FROM datasets as d, data_types as t "
+    c.execute("SELECT d.id AS dataset, d.metadata as metadata, t.schema AS schema FROM datasets as d, data_types as t "
               "WHERE d.data_type = t.id AND {}".format("d.data_type = ?" if dt != "" else "1"),
               (dt[0],) if len(dt) > 0 else ())
 
@@ -223,6 +230,7 @@ def dataset_list():
 
     return jsonify([{
         "id": d["dataset"],
+        "metadata": json.loads(d["metadata"]),
         "schema": json.loads(d["schema"])
     } for d in data_sets])
 
@@ -231,8 +239,8 @@ def dataset_list():
 def dataset_detail(dataset_id):
     db = get_db()
     c = db.cursor()
-    c.execute("SELECT d.id AS id, t.schema AS schema FROM datasets AS d, data_types AS t WHERE d.data_type = t.id "
-              "AND d.id = ?", (str(dataset_id),))
+    c.execute("SELECT d.id AS id, d.metadata as metadata, t.schema AS schema FROM datasets AS d, data_types AS t "
+              "WHERE d.data_type = t.id AND d.id = ?", (str(dataset_id),))
 
     dataset = c.fetchone()
     if dataset is None:
@@ -251,7 +259,8 @@ def dataset_detail(dataset_id):
 
     return jsonify({
         "objects": [{"id": e["id"], "content": e["content"]} for e in entries],
-        "schema": json.loads(dataset["schema"])  # TODO
+        "schema": json.loads(dataset["schema"]),  # TODO
+        "metadata": json.loads(dataset["metadata"])
     })
 
 
