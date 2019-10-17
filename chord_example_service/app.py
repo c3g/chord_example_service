@@ -264,6 +264,14 @@ def dataset_detail(dataset_id):
     })
 
 
+def format_search_fragment(negated, field, operator):
+    return "{negated}(e.{field} {operator} ?)".format(
+        negated="NOT " if negated else "",
+        field=field,
+        operator=chord_lib.search.SQL_SEARCH_OPERATORS[operator]
+    )
+
+
 @application.route("/search", methods=["POST"])
 def search_endpoint():
     # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
@@ -277,9 +285,7 @@ def search_endpoint():
                            isinstance(c["negated"], bool) and c["operation"] in chord_lib.search.SEARCH_OPERATIONS]
     query = ("SELECT * FROM datasets AS d WHERE d.data_type = ? AND d.id IN ("
              "SELECT dataset FROM entries WHERE {})".format(
-                 " AND ".join(["{}({} {} ?)".format("NOT " if c["negated"] else "",
-                                                    c["field"].split(".")[-1],
-                                                    chord_lib.search.SQL_SEARCH_OPERATORS[c["operation"]])
+                 " AND ".join([format_search_fragment(c["negated"], c["field"].split(".")[-1], c["operation"])
                                for c in conditions_filtered])))
 
     db = get_db()
@@ -303,13 +309,11 @@ def private_search_endpoint():
     conditions_filtered = [c for c in conditions if c["field"].split(".")[-1] in ("id", "content") and
                            isinstance(c["negated"], bool) and c["operation"] in chord_lib.search.SEARCH_OPERATIONS]
 
-    entry_conditions = " AND ".join(["{}({} {} ?)".format(
-        "NOT " if c["negated"] else "", "e." + c["field"].split(".")[-1],
-        chord_lib.search.SQL_SEARCH_OPERATORS[c["operation"]]
-    ) for c in conditions_filtered])
-
-    query = ("SELECT d.id as dataset_id, e.id as id, e.content as content FROM datasets AS d, entries AS e "
-             "WHERE d.data_type = ? AND d.id = e.dataset AND {}".format(entry_conditions))
+    query = (
+        "SELECT d.id as dataset_id, e.id as id, e.content as content FROM datasets AS d, entries AS e "
+        "WHERE d.data_type = ? AND d.id = e.dataset AND {}".format(
+            " AND ".join([format_search_fragment(c["negated"], "e." + c["field"].split(".")[-1], c["operation"])
+                          for c in conditions_filtered])))
 
     db = get_db()
     db.set_trace_callback(print)
