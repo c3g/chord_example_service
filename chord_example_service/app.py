@@ -269,6 +269,8 @@ def search_endpoint():
     # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
     # TODO: PROBABLY VULNERABLE IN SOME WAY
 
+    start = datetime.datetime.now()
+
     dt = request.json["dataTypeID"]
     conditions = request.json["conditions"]
     conditions_filtered = [c for c in conditions if c["field"].split(".")[-1] in ("id", "content") and
@@ -286,13 +288,15 @@ def search_endpoint():
     c.execute(query, (dt,) + tuple([f"%{c['searchValue']}%" if c["operation"] == "co" else c["searchValue"]
                                     for c in conditions_filtered]))
 
-    return jsonify({"results": [dict(c) for c in c.fetchall()]})
+    return jsonify(chord_lib.search.build_search_response([dict(c) for c in c.fetchall()], start))
 
 
 @application.route("/private/search", methods=["POST"])
 def private_search_endpoint():
     # TODO: NO SPEC FOR THIS YET SO I JUST MADE SOME STUFF UP
     # TODO: PROBABLY VULNERABLE IN SOME WAY
+
+    start = datetime.datetime.now()
 
     dt = request.json["dataTypeID"]
     conditions = request.json["conditions"]
@@ -316,10 +320,11 @@ def private_search_endpoint():
 
     results_by_dataset_id = {}
     for entry in c.fetchall():
+        # noinspection PyUnresolvedReferences
         results_by_dataset_id[entry[0]] = results_by_dataset_id.get(entry[0], []) + \
             [{"id": entry[1], "content": entry[2]}]
 
-    return jsonify({"results": results_by_dataset_id})
+    return jsonify(chord_lib.search.build_search_response(results_by_dataset_id, start))
 
 
 @application.route("/service-info", methods=["GET"])
