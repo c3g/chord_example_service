@@ -2,14 +2,12 @@
 
 import setuptools
 
-from chord_example_service import __version__
-
 with open("README.md", "r") as rf:
     long_description = rf.read()
 
 setuptools.setup(
     name="chord_example_service",
-    version=__version__,
+    version="0.1.0",
 
     python_requires=">=3.6",
     install_requires=["chord_lib @ git+https://github.com/c3g/chord_lib", "Flask==1.1.1"],
