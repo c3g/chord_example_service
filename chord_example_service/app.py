@@ -2,80 +2,17 @@ import chord_lib.search
 import chord_example_service
 import datetime
 import os
-import sqlite3
 
-from flask import Flask, g, json, jsonify, request
-from uuid import uuid4
+from flask import Flask, json, jsonify, request
 
-from .schemas import *
+from .db import get_db, init_db, update_db, close_db
+from .schemas import TABLE_METADATA_SCHEMA
 
 
 application = Flask(__name__)
 application.config.from_mapping(
     DATABASE=os.environ.get("DATABASE", "chord_example_service.db")
 )
-
-
-def data_type_404(data_type_id):
-    return json.dumps({
-        "code": 404,
-        "message": "Data type not found",
-        "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
-        "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
-    })
-
-
-def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(application.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES)
-        g.db.row_factory = sqlite3.Row
-
-    return g.db
-
-
-def close_db(_e=None):
-    db = g.pop("db", None)
-    if db is not None:
-        db.close()
-
-
-def init_db():
-    db = get_db()
-
-    with application.open_resource("schema.sql") as sf:
-        db.executescript(sf.read().decode("utf-8"))
-
-    db.commit()
-
-    # Dummy values
-    c = db.cursor()
-
-    for dt in ("demo1", "demo2"):
-        c.execute("INSERT INTO data_types VALUES (?, ?)", (dt, json.dumps(DATA_TYPE_SCHEMA[dt])))
-        for _ in range(5):
-            new_id = str(uuid4())
-            c.execute("INSERT INTO datasets (id, data_type, metadata) VALUES (?, ?, ?)", (new_id, dt, json.dumps({
-                "created": datetime.datetime.utcnow().isoformat() + "Z",
-                "updated": datetime.datetime.utcnow().isoformat() + "Z"
-            })))
-            for e in range(20):
-                c.execute("INSERT INTO entries (content, dataset) VALUES (?, ?)", ("test content {}".format(e),
-                                                                                   new_id))
-
-    db.commit()
-
-
-def update_db():
-    db = get_db()
-    c = db.cursor()
-
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='datasets'")
-    if c.fetchone() is None:
-        init_db()
-        return
-
-    # TODO
-
 
 application.teardown_appcontext(close_db)
 
@@ -84,6 +21,15 @@ with application.app_context():
         init_db()
     else:
         update_db()
+
+
+def data_type_404(data_type_id):
+    return jsonify({
+        "code": 404,
+        "message": "Data type not found",
+        "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
+        "errors": [{"code": "not_found", "message": f"Data type with ID {data_type_id} was not found"}]
+    }), 404
 
 
 @application.route("/data-types", methods=["GET"])
@@ -111,7 +57,7 @@ def data_type_detail(data_type_id: str):
 
     data_type = c.fetchone()
     if data_type is None:
-        return application.response_class(response=data_type_404(data_type_id))
+        return data_type_404(data_type_id)
 
     return jsonify({
         "id": data_type["id"],
@@ -128,7 +74,7 @@ def data_type_schema(data_type_id: str):
 
     data_type = c.fetchone()
     if data_type is None:
-        return application.response_class(response=data_type_404(data_type_id))
+        return data_type_404(data_type_id)
 
     return jsonify(json.loads(data_type[0]))
 
@@ -169,6 +115,7 @@ def dataset_detail(dataset_id):
     dataset = c.fetchone()
     if dataset is None:
         return application.response_class(
+            status=404,
             response=json.dumps({
                 "code": 404,
                 "message": "Dataset not found",
