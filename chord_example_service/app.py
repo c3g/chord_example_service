@@ -9,6 +9,10 @@ from .db import get_db, init_db, update_db, close_db
 from .schemas import TABLE_METADATA_SCHEMA
 
 
+SERVICE_TYPE = "ca.c3g.chord:example:{}".format(chord_example_service.__version__)
+SERVICE_ID = os.environ.get("SERVICE_ID", SERVICE_TYPE)
+
+
 application = Flask(__name__)
 application.config.from_mapping(
     DATABASE=os.environ.get("DATABASE", "chord_example_service.db")
@@ -114,15 +118,12 @@ def dataset_detail(dataset_id):
 
     dataset = c.fetchone()
     if dataset is None:
-        return application.response_class(
-            status=404,
-            response=json.dumps({
-                "code": 404,
-                "message": "Dataset not found",
-                "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
-                "errors": [{"code": "not_found", "message": f"Dataset with ID {dataset_id} was not found"}]
-            })
-        )
+        return jsonify({
+            "code": 404,
+            "message": "Dataset not found",
+            "timestamp": datetime.datetime.utcnow().isoformat("T") + "Z",
+            "errors": [{"code": "not_found", "message": f"Dataset with ID {dataset_id} was not found"}]
+        }), 404
 
     c.execute("SELECT * FROM entries WHERE dataset = ?", (str(dataset_id),))
 
@@ -207,13 +208,13 @@ def service_info():
     # Spec: https://github.com/ga4gh-discovery/ga4gh-service-info
 
     return jsonify({
-        "id": "ca.distributedgenomics.chord_example_service",  # TODO: Should be globally unique
-        "name": "CHORD Example Service",                       # TODO: Should be globally unique
-        "type": "ca.distributedgenomics:chord_example_service:{}".format(chord_example_service.__version__),  # TODO
+        "id": SERVICE_ID,
+        "name": "CHORD Example Service",  # TODO: Should be globally unique?
+        "type": SERVICE_TYPE,
         "description": "Example service for a CHORD application.",
         "organization": {
-            "name": "GenAP",
-            "url": "https://genap.ca/"
+            "name": "C3G",
+            "url": "http://www.computationalgenomics.ca"
         },
         "contactUrl": "mailto:david.lougheed@mail.mcgill.ca",
         "version": chord_example_service.__version__
